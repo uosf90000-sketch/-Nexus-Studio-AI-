@@ -1,0 +1,73 @@
+// NEXUS-P1-001: Prisma schema for Phase 1 MVP
+// Only includes tables required for: idea input -> summary + PRD -> save -> display
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Core entities
+model Project {
+  id        String   @id @default(cuid())
+  title     String
+  idea      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents ProjectDocument[]
+  costEntries CostEntry[]
+  logs ExecutionLog[]
+}
+
+model ProjectDocument {
+  id        String   @id @default(cuid())
+  projectId String
+  type      String   @default("summary_and_prd") // Type of document (summary_and_prd for Phase 1)
+  content   String   // JSON or markdown summary + short PRD
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model CostEntry {
+  id        String   @id @default(cuid())
+  projectId String
+  provider  String   // "claude", etc
+  model     String   // model identifier
+  inputTokens Int
+  outputTokens Int
+  estimatedCost Float  // currency-agnostic
+  actualCost    Float?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ExecutionLog {
+  id        String   @id @default(cuid())
+  projectId String
+  action    String   // "plan_created", "document_saved", etc
+  status    String   // "success", "failed", "in_progress"
+  details   String?  // JSON
+  error     String?  // error message if failed
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model AppSetting {
+  key   String @id
+  value String
+
+  @@map("app_settings")
+}
