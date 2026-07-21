@@ -1,27 +1,21 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi, beforeEach } from 'vitest'
 import { Planner } from '@/modules/agents/planner'
+import { mockFetchSuccess } from './setup'
 
 describe('Planner', () => {
   let planner: Planner
 
   beforeAll(() => {
-    // Ensure env vars are set for tests
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.warn('ANTHROPIC_API_KEY not set - tests will be skipped')
-    }
-    if (!process.env.ANTHROPIC_MODEL) {
-      console.warn('ANTHROPIC_MODEL not set - tests will be skipped')
-    }
-
     planner = new Planner()
+    mockFetchSuccess()
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFetchSuccess()
   })
 
   it('should generate summary and PRD from an idea', async () => {
-    if (!process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_MODEL) {
-      console.log('Skipping test: API keys not configured')
-      return
-    }
-
     const idea = 'A mobile app that helps users track their daily water intake'
 
     const result = await planner.generateSummaryAndPRD(idea)
@@ -39,20 +33,36 @@ describe('Planner', () => {
     }
   })
 
-  it('should handle empty ideas', async () => {
-    if (!process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_MODEL) {
-      console.log('Skipping test: API keys not configured')
-      return
-    }
+  it('should handle different idea lengths', async () => {
+    const shortIdea = 'An app'
+    const result = await planner.generateSummaryAndPRD(shortIdea)
 
-    const idea = ''
+    expect(result).toHaveProperty('summary')
+    expect(result).toHaveProperty('shortPrd')
+    expect(result.summary).toBeTruthy()
+  })
 
-    try {
-      await planner.generateSummaryAndPRD(idea)
-      // Should succeed even with empty idea (Claude will handle it)
-    } catch (error) {
-      // If it errors, that's okay - the error should be meaningful
-      expect(error).toBeDefined()
+  it('should return structured PRD output', async () => {
+    const idea = 'E-commerce platform for handmade goods'
+    const result = await planner.generateSummaryAndPRD(idea)
+
+    expect(result.summary).toBeTruthy()
+    expect(result.shortPrd).toBeTruthy()
+    expect(result.shortPrd.length).toBeGreaterThan(100)
+    // Verify PRD contains expected sections
+    expect(result.shortPrd).toContain('Overview')
+    expect(result.shortPrd).toContain('Features')
+  })
+
+  it('should include usage tokens when available', async () => {
+    const idea = 'Social networking app'
+    const result = await planner.generateSummaryAndPRD(idea)
+
+    if (result.usage) {
+      expect(result.usage.inputTokens).toBeGreaterThan(0)
+      expect(result.usage.outputTokens).toBeGreaterThan(0)
+      expect(typeof result.usage.inputTokens).toBe('number')
+      expect(typeof result.usage.outputTokens).toBe('number')
     }
   })
 })
