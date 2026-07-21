@@ -97,11 +97,14 @@ export function mockFetchSuccess() {
 
     const responseContent = isTaskGeneration ? mockTasksResponse : mockClaudeResponse
 
+    // Wrap JSON in markdown code block to simulate real Claude behavior
+    const textContent = `\`\`\`json\n${JSON.stringify(responseContent)}\n\`\`\``
+
     return new Response(
       JSON.stringify({
         id: 'msg_test',
         type: 'message',
-        content: [{ type: 'text', text: JSON.stringify(responseContent) }],
+        content: [{ type: 'text', text: textContent }],
         usage: {
           input_tokens: 100,
           output_tokens: 200,

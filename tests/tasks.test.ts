@@ -17,8 +17,10 @@ describe('TasksService', () => {
   })
 
   async function createTestProject(title: string, idea: string) {
+    // Add TASKS-TEST- prefix to make titles unique from projects tests
+    const uniqueTitle = `TASKS-TEST-${title}-${Date.now()}`
     const project = await prisma.project.create({
-      data: { title, idea },
+      data: { title: uniqueTitle, idea },
     })
 
     await prisma.projectDocument.create({

@@ -60,8 +60,19 @@ Example format:
       try {
         parsed = JSON.parse(output.text)
       } catch {
-        logSafe('Could not parse Claude output as JSON, treating output as error')
-        throw new Error('Failed to parse task generation response as JSON')
+        // Try to extract JSON from markdown code blocks
+        const jsonMatch = output.text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+        if (jsonMatch?.[1]) {
+          try {
+            parsed = JSON.parse(jsonMatch[1])
+          } catch {
+            logSafe('Could not parse Claude output as JSON, treating output as error')
+            throw new Error('Failed to parse task generation response as JSON')
+          }
+        } else {
+          logSafe('Could not parse Claude output as JSON, treating output as error')
+          throw new Error('Failed to parse task generation response as JSON')
+        }
       }
 
       if (!parsed.tasks || !Array.isArray(parsed.tasks)) {
