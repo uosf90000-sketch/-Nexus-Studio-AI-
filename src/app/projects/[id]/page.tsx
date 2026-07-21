@@ -26,13 +26,24 @@ interface CostEntry {
   actualCost: number
 }
 
+interface Task {
+  id: string
+  title: string
+  description: string
+  order: number
+  status: string
+}
+
 export default function ProjectPage() {
   const params = useParams()
   const projectId = typeof params.id === 'string' ? params.id : ''
   const [project, setProject] = useState<Project | null>(null)
   const [costs, setCosts] = useState<CostEntry[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [taskError, setTaskError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!projectId) return
@@ -54,6 +65,13 @@ export default function ProjectPage() {
         const data = await res.json()
         setProject(data.project)
         setCosts(data.costs || [])
+
+        // Load tasks
+        const tasksRes = await fetch(`/api/projects/${projectId}/tasks`)
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json()
+          setTasks(tasksData.tasks || [])
+        }
       } catch (err) {
         setError('Failed to load project')
         console.error('Error:', err)
@@ -64,6 +82,31 @@ export default function ProjectPage() {
 
     loadProject()
   }, [projectId])
+
+  async function handleGenerateTasks() {
+    try {
+      setIsGeneratingTasks(true)
+      setTaskError(null)
+
+      const res = await fetch(`/api/projects/${projectId}/tasks`, {
+        method: 'POST',
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setTaskError(data.error || 'Failed to generate tasks')
+        return
+      }
+
+      const data = await res.json()
+      setTasks(data.tasks || [])
+    } catch (err) {
+      setTaskError('Failed to generate tasks')
+      console.error('Error:', err)
+    } finally {
+      setIsGeneratingTasks(false)
+    }
+  }
 
   if (isLoading) {
     return <div className="text-center py-8">Loading...</div>
@@ -142,6 +185,48 @@ export default function ProjectPage() {
           </div>
         </div>
       )}
+
+      {/* Tasks Section */}
+      <div className="bg-card rounded-lg border border-border p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">Implementation Tasks</h2>
+          <button
+            onClick={handleGenerateTasks}
+            disabled={isGeneratingTasks || !summaryAndPrd}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isGeneratingTasks ? 'Generating...' : 'Generate Tasks'}
+          </button>
+        </div>
+
+        {taskError && (
+          <div className="bg-destructive/10 text-destructive px-4 py-2 rounded-md mb-4">
+            {taskError}
+          </div>
+        )}
+
+        {tasks.length === 0 ? (
+          <p className="text-muted-foreground">
+            {summaryAndPrd ? 'No tasks generated yet. Click "Generate Tasks" to create them from the PRD.' : 'Generate a PRD first to create tasks.'}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {tasks.map(task => (
+              <div key={task.id} className="border border-border rounded-lg p-4 bg-muted/50">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="font-semibold text-lg">{task.order}. {task.title}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                  </div>
+                  <span className="ml-4 px-2 py-1 text-xs bg-primary/20 text-primary rounded-full whitespace-nowrap">
+                    {task.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Costs */}
       {costs.length > 0 && (

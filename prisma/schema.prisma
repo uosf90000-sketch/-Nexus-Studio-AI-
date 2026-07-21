@@ -19,6 +19,7 @@ model Project {
   updatedAt DateTime @updatedAt
 
   documents ProjectDocument[]
+  tasks Task[]
   costEntries CostEntry[]
   logs ExecutionLog[]
 }
@@ -59,6 +60,21 @@ model ExecutionLog {
   details   String?  // JSON
   error     String?  // error message if failed
   createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  projectId String
+  title     String
+  description String
+  order     Int      // sequence position
+  status    String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
