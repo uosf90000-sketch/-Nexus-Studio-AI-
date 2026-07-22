@@ -91,6 +91,7 @@ model TaskRun {
 
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   review Review?
+  writtenFiles WrittenFile[]
 
   @@index([taskId])
 }
@@ -129,8 +130,23 @@ model Review {
   updatedAt    DateTime @updatedAt
 
   taskRun TaskRun @relation(fields: [taskRunId], references: [id], onDelete: Cascade)
+  writtenFiles WrittenFile[]
 
   @@index([taskRunId])
+}
+
+model WrittenFile {
+  id        String   @id @default(cuid())
+  taskRunId String
+  reviewId  String
+  path      String   // relative path under generated/<projectId>/
+  createdAt DateTime @default(now())
+
+  taskRun TaskRun @relation(fields: [taskRunId], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([taskRunId])
+  @@index([reviewId])
 }
 
 model AppSetting {

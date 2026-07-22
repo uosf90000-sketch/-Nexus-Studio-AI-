@@ -41,3 +41,6 @@ yarn-error.log*
 
 # IDE
 .cursor/
+
+# Generated files (Phase 2C2)
+/generated/
