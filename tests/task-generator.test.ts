@@ -46,8 +46,8 @@ Metrics: Performance under 100ms`
     const result = await generator.generateTasks(prd, 'Task Manager')
 
     // Verify tasks are returned in order (order is assigned by server on save)
-    expect(result.tasks.length).toBeGreaterThanOrEqual(3)
-    expect(result.tasks.length).toBeLessThanOrEqual(5)
+    expect(result.tasks.length).toBeGreaterThanOrEqual(4)
+    expect(result.tasks.length).toBeLessThanOrEqual(8)
 
     // Verify all tasks have title and description
     result.tasks.forEach((task) => {
@@ -56,15 +56,15 @@ Metrics: Performance under 100ms`
     })
   })
 
-  it('should generate 3-5 tasks', async () => {
+  it('should generate 4-8 tasks', async () => {
     const prd = `App: Weather Dashboard
 Features: Real-time updates, location services
 Goals: Beautiful UI, fast loading`
 
     const result = await generator.generateTasks(prd, 'Weather Dashboard')
 
-    expect(result.tasks.length).toBeGreaterThanOrEqual(3)
-    expect(result.tasks.length).toBeLessThanOrEqual(5)
+    expect(result.tasks.length).toBeGreaterThanOrEqual(4)
+    expect(result.tasks.length).toBeLessThanOrEqual(8)
   })
 
   it('should include usage tokens when available', async () => {

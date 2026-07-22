@@ -22,24 +22,36 @@ Test product overview with key details.
 export const mockTasksResponse = {
   tasks: [
     {
-      title: 'Set up project structure',
-      description: 'Initialize the project with necessary folders and configuration files.',
-      order: 1,
+      title: 'Design and implement product catalog database schema',
+      description: 'Create database models for products, categories, images, and ratings. Implement efficient indexing for search and filtering by category, price range, and rating. Support product reviews with user ratings.',
     },
     {
-      title: 'Implement core functionality',
-      description: 'Build the main features described in the PRD.',
-      order: 2,
+      title: 'Build product search and filtering API',
+      description: 'Develop REST endpoints for product search, category filtering, price range filters, and sorting. Implement full-text search for product names and descriptions. Return paginated results with performance optimization.',
     },
     {
-      title: 'Create API endpoints',
-      description: 'Develop REST API routes for data access and manipulation.',
-      order: 3,
+      title: 'Implement shopping cart with persistence',
+      description: 'Create shopping cart functionality to add/remove items and update quantities. Implement session-based and persistent storage (save to database between sessions). Support discount code application and calculation.',
     },
     {
-      title: 'Build user interface',
-      description: 'Create UI components and pages for user interaction.',
-      order: 4,
+      title: 'Build user authentication system',
+      description: 'Implement user registration, email verification, and secure login. Add password reset functionality via email. Integrate social authentication (Google, GitHub OAuth). Use JWT for session management.',
+    },
+    {
+      title: 'Implement multi-step checkout process',
+      description: 'Create checkout UI flow: cart review → shipping address → shipping method selection → payment. Validate addresses and calculate shipping costs. Store order details before payment.',
+    },
+    {
+      title: 'Integrate payment gateway with multiple providers',
+      description: 'Integrate Stripe and PayPal payment processors. Implement secure payment processing, order confirmation, and email receipts. Ensure PCI compliance. Handle payment failures and retries gracefully.',
+    },
+    {
+      title: 'Build admin dashboard for product and order management',
+      description: 'Create CRUD interfaces for product management (add/edit/delete). Implement order tracking, fulfillment status updates, and order history. Add user management with role-based access control.',
+    },
+    {
+      title: 'Implement analytics and real-time inventory sync',
+      description: 'Track conversion rates, page load metrics, and customer satisfaction. Sync inventory in real-time across frontend and backend to prevent overselling. Create reporting dashboards for business metrics.',
     },
   ],
 }

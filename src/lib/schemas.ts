@@ -12,7 +12,7 @@ export type GeneratedTask = z.infer<typeof GeneratedTaskSchema>
 
 // Task generation response from TaskGenerator
 export const TaskGenerationResponseSchema = z.object({
-  tasks: z.array(GeneratedTaskSchema).min(3, 'Minimum 3 tasks').max(5, 'Maximum 5 tasks'),
+  tasks: z.array(GeneratedTaskSchema).min(4, 'Minimum 4 tasks').max(8, 'Maximum 8 tasks'),
 })
 
 export type TaskGenerationResponse = z.infer<typeof TaskGenerationResponseSchema>

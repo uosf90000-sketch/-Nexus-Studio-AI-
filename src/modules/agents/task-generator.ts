@@ -27,24 +27,32 @@ export class TaskGenerator {
   async generateTasks(prd: string, projectTitle: string): Promise<TaskGeneratorOutput> {
     logSafe(`TaskGenerator: generating tasks from PRD for project "${projectTitle}"`)
 
-    const prompt = `You are a project planning expert. Given the following product requirements document (PRD), generate an ordered list of implementation tasks.
+    const prompt = `You are a technical architect. Analyze the PRD below and generate concrete, specific implementation tasks derived directly from the stated features and requirements.
 
-Each task should be:
-- Clear and actionable
-- Focused on a single responsibility
-- In logical order of dependencies
-- Estimated for a single developer session
+CRITICAL RULES:
+1. **Extract from PRD Features**: Each task must map to a specific feature, requirement, or component mentioned in the PRD. Do NOT generate generic tasks like "build UI" or "implement core functionality".
+2. **Be Specific**: Task titles should reference the actual feature (e.g., "Build product search and filtering" not "Build user interface").
+3. **Implementation-Ready**: Each task must be actionable by a developer in 1-2 sessions. Include technical context.
+4. **Logical Order**: Order by dependencies (setup → data models → APIs → UI).
+5. **No Padding**: Do NOT add extra tasks beyond what the PRD requires. Quantity should match feature complexity.
 
-PRD:
+PRD for "${projectTitle}":
 ${prd}
 
-Generate exactly 3-5 tasks. Format your response as JSON with an array of tasks, each with ONLY "title" (string) and "description" (string). The server will assign sequential order numbers.
+INSTRUCTIONS:
+1. Identify all major features/components in the PRD
+2. For each feature, create a focused, specific task that a developer can implement
+3. Generate 4-8 tasks total (scale with PRD complexity)
+4. Example for e-commerce PRD:
+   - "Implement product catalog database and search API" (not "build core functionality")
+   - "Create shopping cart management with item persistence" (not "build UI")
+   - "Integrate payment gateway with multiple provider support" (not "payment features")
 
-Example format:
+Return ONLY valid JSON:
 {
   "tasks": [
-    {"title": "Set up project structure", "description": "Initialize the project with necessary folders and configuration files."},
-    {"title": "Implement core functionality", "description": "Build the main features described in the PRD."}
+    {"title": "specific task title derived from PRD feature", "description": "detailed implementation steps and technical context"},
+    ...
   ]
 }`
 
