@@ -1,0 +1,117 @@
+// NEXUS-P1-001: Prisma schema for Phase 1 MVP
+// Only includes tables required for: idea input -> summary + PRD -> save -> display
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Core entities
+model Project {
+  id        String   @id @default(cuid())
+  title     String
+  idea      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents ProjectDocument[]
+  tasks Task[]
+  costEntries CostEntry[]
+  logs ExecutionLog[]
+}
+
+model ProjectDocument {
+  id        String   @id @default(cuid())
+  projectId String
+  type      String   @default("summary_and_prd") // Type of document (summary_and_prd for Phase 1)
+  content   String   // JSON or markdown summary + short PRD
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model CostEntry {
+  id        String   @id @default(cuid())
+  projectId String
+  provider  String   // "claude", etc
+  model     String   // model identifier
+  inputTokens Int
+  outputTokens Int
+  estimatedCost Float  // currency-agnostic
+  actualCost    Float?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ExecutionLog {
+  id              String   @id @default(cuid())
+  projectId       String
+  action          String   // "plan_created", "tasks_generated", etc
+  status          String   // "success", "failed", "in_progress"
+  provider        String?  // "claude"
+  model           String?  // model identifier
+  retryCount      Int      @default(0)
+  elapsedMs       Int?     // elapsed time in milliseconds
+  generatedCount  Int?     // number of items generated
+  details         String?  // JSON metadata
+  error           String?  // error message if failed
+  createdAt       DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model TaskRun {
+  id             String   @id @default(cuid())
+  taskId         String
+  status         String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  provider       String   // "claude"
+  model          String   // model identifier
+  startedAt      DateTime @default(now())
+  finishedAt     DateTime?
+  inputTokens    Int?
+  outputTokens   Int?
+  estimatedCost  Float?
+  actualCost     Float?
+  retryCount     Int      @default(0)
+  error          String?  // error message if failed
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  projectId String
+  title     String
+  description String
+  order     Int      // sequence position (server-assigned: 1, 2, 3...)
+  status    String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  runs TaskRun[]
+
+  @@index([projectId])
+}
+
+model AppSetting {
+  key   String @id
+  value String
+
+  @@map("app_settings")
+}
