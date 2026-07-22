@@ -223,4 +223,61 @@ Features: Feature A, Feature B, Feature C, Feature D`
       expect(error instanceof Error ? error.message : '').toContain('not found')
     }
   })
+
+  it('should preserve old tasks when generation fails', async () => {
+    let projectId: string | null = null
+    try {
+      projectId = await createTestProject('Preserve Test', 'Preserve idea')
+
+      // Step 1: Generate and save initial tasks
+      const prd1 = `App: Initial Version
+Key Features: Feature A, Feature B, Feature C
+Success Metrics: Performance`
+
+      const initialResult = await service.generateAndSaveTasks({
+        projectId,
+        prd: prd1,
+        projectTitle: 'Initial Version',
+      })
+
+      const oldTaskCount = initialResult.tasks.length
+      const oldTitles = initialResult.tasks.map((t) => t.title).sort()
+
+      expect(oldTaskCount).toBeGreaterThan(0)
+
+      // Step 2: Mock fetch to return error (simulate API failure)
+      global.fetch = vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({ error: 'API error' }),
+            { status: 500 }
+          )
+        )
+      )
+
+      // Step 3: Try to generate new tasks (should fail)
+      const prd2 = `App: Updated Version
+Key Features: Different features`
+
+      try {
+        await service.generateAndSaveTasks({
+          projectId,
+          prd: prd2,
+          projectTitle: 'Updated Version',
+        })
+        expect.fail('Should have thrown an error')
+      } catch (error) {
+        expect(error).toBeDefined()
+      }
+
+      // Step 4: Verify old tasks are still there unchanged
+      const currentTasks = await service.getTasks(projectId)
+      const currentTitles = currentTasks.map((t) => t.title).sort()
+
+      expect(currentTasks.length).toBe(oldTaskCount)
+      expect(currentTitles).toEqual(oldTitles)
+    } finally {
+      if (projectId) await cleanupProject(projectId)
+    }
+  })
 })
