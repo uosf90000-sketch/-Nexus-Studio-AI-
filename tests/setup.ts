@@ -56,6 +56,100 @@ export const mockTasksResponse = {
   ],
 }
 
+export const mockBuilderResponse = `// Product Catalog Schema
+import { Schema, model } from 'mongoose'
+
+interface IProduct {
+  name: string
+  description: string
+  price: number
+  category: string
+  images: string[]
+  rating: number
+  reviewCount: number
+  createdAt: Date
+}
+
+// Prisma Schema (recommended for this stack)
+/*
+model Product {
+  id        String   @id @default(cuid())
+  name      String
+  description String
+  price     Float
+  category  String
+  images    String[]
+  rating    Float    @default(0)
+  reviewCount Int    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@fulltext([name, description])
+}
+
+model ProductReview {
+  id       String   @id @default(cuid())
+  productId String
+  userId   String
+  rating   Int      // 1-5
+  comment  String?
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+*/
+
+// API Route Handler
+// app/api/products/search/route.ts
+import { prisma } from '@/lib/prisma'
+import { NextRequest, NextResponse } from 'next/server'
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const q = searchParams.get('q') || ''
+  const category = searchParams.get('category')
+  const minPrice = parseFloat(searchParams.get('minPrice') || '0')
+  const maxPrice = parseFloat(searchParams.get('maxPrice') || '999999')
+  const page = parseInt(searchParams.get('page') || '1')
+  const limit = 20
+
+  try {
+    const where = {
+      AND: [
+        q ? { name: { search: q } } : {},
+        category ? { category } : {},
+        { price: { gte: minPrice, lte: maxPrice } },
+      ],
+    }
+
+    const total = await prisma.product.count({ where })
+    const products = await prisma.product.findMany({
+      where,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return NextResponse.json({
+      data: products,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Search failed' },
+      { status: 500 }
+    )
+  }
+}`
+
 // Mock Prisma
 export const mockPrismaProject = {
   id: 'test-project-id',
@@ -89,8 +183,8 @@ export const mockPrismaCostEntry = {
 // Detects context from the request body to return appropriate response
 export function mockFetchSuccess() {
   global.fetch = vi.fn(async (input: any, options?: any): Promise<Response> => {
-    // Parse request body to determine if this is a task generation or PRD generation
-    let isTaskGeneration = false
+    // Parse request body to determine type: PRD / tasks / builder code
+    let responseType = 'prd' // default
 
     try {
       const body =
@@ -98,19 +192,33 @@ export function mockFetchSuccess() {
       if (body) {
         const parsed = typeof body === 'string' ? JSON.parse(body) : body
         const message = parsed.messages?.[0]?.content || ''
-        // If prompt mentions "tasks" or "implementation", it's for task generation
-        isTaskGeneration =
-          message.toLowerCase().includes('task') ||
-          message.toLowerCase().includes('implementation')
+        const lowerMsg = message.toLowerCase()
+
+        if (lowerMsg.includes('builder') || lowerMsg.includes('generate code') || lowerMsg.includes('code to implement')) {
+          responseType = 'builder'
+        } else if (lowerMsg.includes('task') || lowerMsg.includes('implementation')) {
+          responseType = 'tasks'
+        }
       }
     } catch {
       // Default to PRD response if parse fails
     }
 
-    const responseContent = isTaskGeneration ? mockTasksResponse : mockClaudeResponse
+    let responseContent: any
+    let textContent: string
 
-    // Wrap JSON in markdown code block to simulate real Claude behavior
-    const textContent = `\`\`\`json\n${JSON.stringify(responseContent)}\n\`\`\``
+    if (responseType === 'builder') {
+      // Return raw code (no JSON wrapping for builder)
+      textContent = mockBuilderResponse
+    } else if (responseType === 'tasks') {
+      // Return JSON for tasks
+      responseContent = mockTasksResponse
+      textContent = `\`\`\`json\n${JSON.stringify(responseContent)}\n\`\`\``
+    } else {
+      // Return JSON for PRD
+      responseContent = mockClaudeResponse
+      textContent = `\`\`\`json\n${JSON.stringify(responseContent)}\n\`\`\``
+    }
 
     return new Response(
       JSON.stringify({

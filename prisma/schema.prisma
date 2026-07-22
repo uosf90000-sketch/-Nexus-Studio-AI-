@@ -74,9 +74,10 @@ model ExecutionLog {
 model TaskRun {
   id             String   @id @default(cuid())
   taskId         String
-  status         String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  status         String   @default("PENDING") // PENDING, RUNNING, SUCCESS, FAILED
   provider       String   // "claude"
   model          String   // model identifier
+  generatedCode  String?  // generated code as text (Phase 2B)
   startedAt      DateTime @default(now())
   finishedAt     DateTime?
   inputTokens    Int?
