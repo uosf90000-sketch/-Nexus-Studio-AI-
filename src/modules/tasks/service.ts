@@ -1,5 +1,6 @@
 // NEXUS-P2A-002: Tasks Service
 // Manages task generation, storage, and retrieval
+// Guarantees: atomic updates, preserved existing tasks on failure, deterministic ordering
 
 import { prisma } from '@/lib/prisma'
 import { TaskGenerator } from '@/modules/agents/task-generator'
@@ -33,25 +34,17 @@ export class TasksService {
 
   async generateAndSaveTasks(input: CreateTasksInput): Promise<TasksServiceResponse> {
     const { projectId, prd, projectTitle } = input
+    const startTime = Date.now()
 
     logSafe(`TasksService: generating tasks for project ${projectId}`)
 
-    // Check if project exists
+    // Verify project exists
     const project = await prisma.project.findUnique({
       where: { id: projectId },
-      include: { tasks: true },
     })
 
     if (!project) {
       throw new Error(`Project ${projectId} not found`)
-    }
-
-    // Delete existing tasks for this project
-    if (project.tasks.length > 0) {
-      await prisma.task.deleteMany({
-        where: { projectId },
-      })
-      logSafe(`Cleared existing ${project.tasks.length} tasks for project ${projectId}`)
     }
 
     // Generate tasks with retry logic (max 2 attempts)
@@ -76,80 +69,134 @@ export class TasksService {
     if (!generatorOutput) {
       const errorMsg = lastError?.message || 'Failed to generate tasks after 2 attempts'
       logSafe(`TasksService: task generation failed: ${errorMsg}`)
-      throw new Error(`Failed to generate tasks: ${errorMsg}`)
-    }
 
-    // Save tasks to database
-    const savedTasks = await Promise.all(
-      generatorOutput.tasks.map((task) =>
-        prisma.task.create({
-          data: {
-            projectId,
-            title: task.title,
-            description: task.description,
-            order: task.order,
-            status: 'PENDING',
-          },
-        })
-      )
-    )
-
-    logSafe(`TasksService: saved ${savedTasks.length} tasks for project ${projectId}`)
-
-    // Record cost entry
-    let costData = null
-    if (generatorOutput.usage) {
-      const inputTokens = generatorOutput.usage.inputTokens
-      const outputTokens = generatorOutput.usage.outputTokens
-
-      // Claude pricing (same as Phase 1): ~$3 per 1M input, ~$15 per 1M output
-      const estimatedCost = (inputTokens * 3) / 1000000 + (outputTokens * 15) / 1000000
-
-      costData = await prisma.costEntry.create({
+      // Log failure
+      const elapsedMs = Date.now() - startTime
+      await prisma.executionLog.create({
         data: {
           projectId,
+          action: 'tasks_generated',
+          status: 'failed',
           provider: 'claude',
           model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5',
-          inputTokens,
-          outputTokens,
-          estimatedCost,
+          retryCount: 2,
+          elapsedMs,
+          error: errorMsg,
         },
       })
 
-      logSafe(`TasksService: cost recorded: $${estimatedCost.toFixed(6)}`)
+      throw new Error(`Failed to generate tasks: ${errorMsg}`)
     }
 
-    // Log execution
-    await prisma.executionLog.create({
-      data: {
-        projectId,
-        action: 'tasks_generated',
-        status: 'success',
-        details: JSON.stringify({
-          taskCount: savedTasks.length,
-          provider: 'claude',
-          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5',
-        }),
-      },
-    })
+    // Use transaction to ensure atomicity:
+    // 1. Validate & assign order
+    // 2. Delete old tasks
+    // 3. Insert new tasks
+    // 4. Record cost & logs
+    // If any step fails, entire transaction rolls back (old tasks remain)
 
-    return {
-      tasks: savedTasks.map((t) => ({
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        order: t.order,
-        status: t.status,
-      })),
-      cost: costData
-        ? {
-            estimatedCost: costData.estimatedCost,
-            inputTokens: costData.inputTokens,
-            outputTokens: costData.outputTokens,
+    const elapsedMs = Date.now() - startTime
+    const inputTokens = generatorOutput.usage?.inputTokens || 0
+    const outputTokens = generatorOutput.usage?.outputTokens || 0
+    const estimatedCost =
+      (inputTokens * 3) / 1000000 + (outputTokens * 15) / 1000000
+
+    try {
+      const savedTasks = await prisma.$transaction(async (tx) => {
+        // Delete existing tasks atomically (transaction rolls back if insert fails)
+        await tx.task.deleteMany({
+          where: { projectId },
+        })
+
+        logSafe(`TasksService: deleted existing tasks for project ${projectId}`)
+
+        // Insert new tasks with server-assigned sequential order
+        const insertedTasks = await Promise.all(
+          generatorOutput.tasks.map((task, index) =>
+            tx.task.create({
+              data: {
+                projectId,
+                title: task.title,
+                description: task.description,
+                order: index + 1, // Server assigns 1, 2, 3, ...
+                status: 'PENDING',
+              },
+            })
+          )
+        )
+
+        logSafe(
+          `TasksService: saved ${insertedTasks.length} tasks for project ${projectId}`
+        )
+
+        // Record cost entry
+        if (inputTokens > 0 || outputTokens > 0) {
+          await tx.costEntry.create({
+            data: {
+              projectId,
+              provider: 'claude',
+              model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5',
+              inputTokens,
+              outputTokens,
+              estimatedCost,
+            },
+          })
+
+          logSafe(`TasksService: cost recorded: $${estimatedCost.toFixed(6)}`)
+        }
+
+        // Log execution
+        await tx.executionLog.create({
+          data: {
+            projectId,
+            action: 'tasks_generated',
+            status: 'success',
             provider: 'claude',
             model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5',
-          }
-        : undefined,
+            retryCount: 1, // succeeded on first attempt
+            elapsedMs,
+            generatedCount: insertedTasks.length,
+          },
+        })
+
+        return insertedTasks
+      })
+
+      return {
+        tasks: savedTasks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          description: t.description,
+          order: t.order,
+          status: t.status,
+        })),
+        cost: {
+          estimatedCost,
+          inputTokens,
+          outputTokens,
+          provider: 'claude',
+          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5',
+        },
+      }
+    } catch (txError) {
+      // Transaction failed, log and rethrow (old tasks preserved)
+      const errorMsg =
+        txError instanceof Error ? txError.message : 'Database transaction failed'
+      logSafe(`TasksService: transaction failed: ${errorMsg}`)
+
+      await prisma.executionLog.create({
+        data: {
+          projectId,
+          action: 'tasks_generated',
+          status: 'failed',
+          provider: 'claude',
+          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5',
+          elapsedMs,
+          error: `Transaction failed: ${errorMsg}`,
+        },
+      })
+
+      throw new Error(`Failed to save tasks: ${errorMsg}`)
     }
   }
 

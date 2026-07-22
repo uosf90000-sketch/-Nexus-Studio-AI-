@@ -1,15 +1,16 @@
 // NEXUS-P2A-001: Task Generator agent
-// Role: PRD -> ordered list of tasks
+// Role: PRD -> list of tasks (title + description only)
+// Server assigns order deterministically
 // Uses Claude adapter to generate structured tasks from a PRD
 
 import { ClaudeAdapter } from './claude-adapter'
 import type { AgentInput } from './adapter'
 import { logSafe } from '@/lib/redact'
+import { validateAndNormalizeTasks } from '@/lib/schemas'
 
 interface GeneratedTask {
   title: string
   description: string
-  order: number
 }
 
 interface TaskGeneratorOutput {
@@ -37,13 +38,13 @@ Each task should be:
 PRD:
 ${prd}
 
-Generate exactly 3-5 tasks. Format your response as JSON with an array of tasks, each with "title" (string), "description" (string), and "order" (1-indexed integer).
+Generate exactly 3-5 tasks. Format your response as JSON with an array of tasks, each with ONLY "title" (string) and "description" (string). The server will assign sequential order numbers.
 
 Example format:
 {
   "tasks": [
-    {"title": "Task 1", "description": "Description", "order": 1},
-    {"title": "Task 2", "description": "Description", "order": 2}
+    {"title": "Set up project structure", "description": "Initialize the project with necessary folders and configuration files."},
+    {"title": "Implement core functionality", "description": "Build the main features described in the PRD."}
   ]
 }`
 
@@ -66,27 +67,17 @@ Example format:
           try {
             parsed = JSON.parse(jsonMatch[1])
           } catch {
-            logSafe('Could not parse Claude output as JSON, treating output as error')
+            logSafe('Could not parse Claude output as JSON')
             throw new Error('Failed to parse task generation response as JSON')
           }
         } else {
-          logSafe('Could not parse Claude output as JSON, treating output as error')
+          logSafe('Could not parse Claude output as JSON')
           throw new Error('Failed to parse task generation response as JSON')
         }
       }
 
-      if (!parsed.tasks || !Array.isArray(parsed.tasks)) {
-        throw new Error('Invalid task generation response: missing tasks array')
-      }
-
-      // Validate and normalize tasks
-      const tasks: GeneratedTask[] = parsed.tasks
-        .filter((t: any) => t.title && t.description && typeof t.order === 'number')
-        .map((t: any, i: number) => ({
-          title: t.title.slice(0, 200),
-          description: t.description.slice(0, 1000),
-          order: i + 1, // Ensure sequential ordering
-        }))
+      // Validate using strict schema
+      const tasks = validateAndNormalizeTasks(parsed)
 
       if (tasks.length === 0) {
         throw new Error('Task generation produced no valid tasks')

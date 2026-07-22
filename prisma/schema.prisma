@@ -53,17 +53,44 @@ model CostEntry {
 }
 
 model ExecutionLog {
-  id        String   @id @default(cuid())
-  projectId String
-  action    String   // "plan_created", "document_saved", etc
-  status    String   // "success", "failed", "in_progress"
-  details   String?  // JSON
-  error     String?  // error message if failed
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  projectId       String
+  action          String   // "plan_created", "tasks_generated", etc
+  status          String   // "success", "failed", "in_progress"
+  provider        String?  // "claude"
+  model           String?  // model identifier
+  retryCount      Int      @default(0)
+  elapsedMs       Int?     // elapsed time in milliseconds
+  generatedCount  Int?     // number of items generated
+  details         String?  // JSON metadata
+  error           String?  // error message if failed
+  createdAt       DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+}
+
+model TaskRun {
+  id             String   @id @default(cuid())
+  taskId         String
+  status         String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  provider       String   // "claude"
+  model          String   // model identifier
+  startedAt      DateTime @default(now())
+  finishedAt     DateTime?
+  inputTokens    Int?
+  outputTokens   Int?
+  estimatedCost  Float?
+  actualCost     Float?
+  retryCount     Int      @default(0)
+  error          String?  // error message if failed
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
 }
 
 model Task {
@@ -71,12 +98,13 @@ model Task {
   projectId String
   title     String
   description String
-  order     Int      // sequence position
+  order     Int      // sequence position (server-assigned: 1, 2, 3...)
   status    String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  runs TaskRun[]
 
   @@index([projectId])
 }
