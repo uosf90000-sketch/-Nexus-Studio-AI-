@@ -192,6 +192,7 @@ export function mockFetchSuccess() {
   global.fetch = vi.fn(async (input: any, options?: any): Promise<Response> => {
     // Parse request body to determine type: PRD / tasks / builder / reviewer
     let responseType = 'prd' // default
+    let reviewerMessage = ''
 
     try {
       const body =
@@ -203,6 +204,7 @@ export function mockFetchSuccess() {
 
         if (lowerMsg.includes('reviewer') || lowerMsg.includes('review') || lowerMsg.includes('verdict')) {
           responseType = 'reviewer'
+          reviewerMessage = message
         } else if (lowerMsg.includes('builder') || lowerMsg.includes('generate code') || lowerMsg.includes('code to implement')) {
           responseType = 'builder'
         } else if (lowerMsg.includes('task') || lowerMsg.includes('implementation')) {
@@ -217,8 +219,49 @@ export function mockFetchSuccess() {
     let textContent: string
 
     if (responseType === 'reviewer') {
-      // Return JSON review response
-      responseContent = mockReviewResponse
+      // Detect stack incompatibility issues from code review
+      let issues: any[] = []
+      let worksOnStack = true
+
+      if (reviewerMessage.includes('@@fulltext')) {
+        issues.push({
+          severity: 'HIGH',
+          description: 'SQLite does NOT support @@fulltext indexing. Use LIKE or substring search instead, or migrate to PostgreSQL for full-text search.',
+        })
+        worksOnStack = false
+      }
+
+      if (reviewerMessage.includes('window function') || reviewerMessage.includes('ROW_NUMBER')) {
+        issues.push({
+          severity: 'HIGH',
+          description: 'SQLite does not support window functions (ROW_NUMBER, RANK, etc.). Refactor logic to use application code.',
+        })
+        worksOnStack = false
+      }
+
+      if (reviewerMessage.includes('JSON_EXTRACT') || reviewerMessage.includes('JSON_SET')) {
+        issues.push({
+          severity: 'MEDIUM',
+          description: 'SQLite JSON operators have limited functionality. Test thoroughly with your data.',
+        })
+      }
+
+      if (reviewerMessage.includes('SELECT') && reviewerMessage.includes("'")) {
+        issues.push({
+          severity: 'HIGH',
+          description: 'Potential SQL injection detected. Use parameterized queries always.',
+        })
+        worksOnStack = false
+      }
+
+      responseContent = {
+        verdict: worksOnStack ? 'APPROVE' : 'REQUEST_CHANGES',
+        summary: worksOnStack
+          ? 'Code is well-structured and compatible with the target stack (Next.js + Prisma + SQLite).'
+          : 'Code has stack incompatibility issues that must be resolved for SQLite.',
+        issues,
+        worksOnStack,
+      }
       textContent = `\`\`\`json\n${JSON.stringify(responseContent)}\n\`\`\``
     } else if (responseType === 'builder') {
       // Return raw code (no JSON wrapping for builder)
