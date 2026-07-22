@@ -90,6 +90,7 @@ model TaskRun {
   updatedAt      DateTime @updatedAt
 
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  review Review?
 
   @@index([taskId])
 }
@@ -108,6 +109,28 @@ model Task {
   runs TaskRun[]
 
   @@index([projectId])
+}
+
+model Review {
+  id           String   @id @default(cuid())
+  taskRunId    String   @unique // one review per TaskRun
+  verdict      String   // APPROVE, REQUEST_CHANGES, REJECT
+  summary      String   // one-two sentence summary
+  issues       String?  // JSON array of {severity, description}
+  worksOnStack Boolean  // does code work on Next.js + Prisma + SQLite?
+  provider     String   // "claude"
+  model        String   // model identifier
+  inputTokens  Int?
+  outputTokens Int?
+  estimatedCost Float?
+  retryCount   Int      @default(0)
+  error        String?  // error message if review failed
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  taskRun TaskRun @relation(fields: [taskRunId], references: [id], onDelete: Cascade)
+
+  @@index([taskRunId])
 }
 
 model AppSetting {

@@ -29,3 +29,30 @@ export function validateAndNormalizeTasks(
     description: task.description.trim(),
   }))
 }
+
+// Review schemas (Phase 2C1)
+export const ReviewIssueSchema = z.object({
+  severity: z.enum(['HIGH', 'MEDIUM', 'LOW']),
+  description: z.string().min(1, 'Issue description required').max(500),
+})
+
+export const ReviewSchema = z.object({
+  verdict: z.enum(['APPROVE', 'REQUEST_CHANGES', 'REJECT']),
+  summary: z.string().min(1, 'Summary required').max(500),
+  issues: z.array(ReviewIssueSchema).default([]),
+  worksOnStack: z.boolean(),
+})
+
+export type ReviewIssue = z.infer<typeof ReviewIssueSchema>
+export type Review = z.infer<typeof ReviewSchema>
+
+// Validate and normalize review
+export function validateAndNormalizeReview(data: unknown): Review {
+  const review = ReviewSchema.parse(data)
+  return {
+    verdict: review.verdict,
+    summary: review.summary.trim(),
+    issues: review.issues,
+    worksOnStack: review.worksOnStack,
+  }
+}

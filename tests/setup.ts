@@ -56,6 +56,13 @@ export const mockTasksResponse = {
   ],
 }
 
+export const mockReviewResponse = {
+  verdict: 'APPROVE',
+  summary: 'Code is well-structured and compatible with the target stack (Next.js + Prisma + SQLite).',
+  issues: [],
+  worksOnStack: true,
+}
+
 export const mockBuilderResponse = `// Product Catalog Schema
 import { Schema, model } from 'mongoose'
 
@@ -183,7 +190,7 @@ export const mockPrismaCostEntry = {
 // Detects context from the request body to return appropriate response
 export function mockFetchSuccess() {
   global.fetch = vi.fn(async (input: any, options?: any): Promise<Response> => {
-    // Parse request body to determine type: PRD / tasks / builder code
+    // Parse request body to determine type: PRD / tasks / builder / reviewer
     let responseType = 'prd' // default
 
     try {
@@ -194,7 +201,9 @@ export function mockFetchSuccess() {
         const message = parsed.messages?.[0]?.content || ''
         const lowerMsg = message.toLowerCase()
 
-        if (lowerMsg.includes('builder') || lowerMsg.includes('generate code') || lowerMsg.includes('code to implement')) {
+        if (lowerMsg.includes('reviewer') || lowerMsg.includes('review') || lowerMsg.includes('verdict')) {
+          responseType = 'reviewer'
+        } else if (lowerMsg.includes('builder') || lowerMsg.includes('generate code') || lowerMsg.includes('code to implement')) {
           responseType = 'builder'
         } else if (lowerMsg.includes('task') || lowerMsg.includes('implementation')) {
           responseType = 'tasks'
@@ -207,7 +216,11 @@ export function mockFetchSuccess() {
     let responseContent: any
     let textContent: string
 
-    if (responseType === 'builder') {
+    if (responseType === 'reviewer') {
+      // Return JSON review response
+      responseContent = mockReviewResponse
+      textContent = `\`\`\`json\n${JSON.stringify(responseContent)}\n\`\`\``
+    } else if (responseType === 'builder') {
       // Return raw code (no JSON wrapping for builder)
       textContent = mockBuilderResponse
     } else if (responseType === 'tasks') {
