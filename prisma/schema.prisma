@@ -22,6 +22,9 @@ model Project {
   tasks Task[]
   costEntries CostEntry[]
   logs ExecutionLog[]
+  councilSessions CouncilSession[]
+  buildRuns BuildRun[]
+  deployments Deployment[]
 }
 
 model ProjectDocument {
@@ -189,4 +192,114 @@ model AppSetting {
   value String
 
   @@map("app_settings")
+}
+
+// NEXUS-P5-001: Council models
+model CouncilSession {
+  id              String   @id @default(cuid())
+  projectId       String
+  status          String   @default("ACTIVE") // ACTIVE, COMPLETED, FAILED
+  verdict         String?  // PROCEED, REVISE, REJECT
+  verdictReason   String?  // written explanation
+  totalCost       Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messages CouncilMessage[]
+
+  @@index([projectId])
+}
+
+model CouncilMessage {
+  id              String   @id @default(cuid())
+  sessionId       String
+  round           Int      // 1, 2, etc
+  role            String   // DIRECTOR, ENGINEER, ANALYST
+  provider        String   // openai, anthropic, google
+  model           String   // model identifier
+  content         String   // full message text
+  inputTokens     Int      @default(0)
+  outputTokens    Int      @default(0)
+  cost            Float    @default(0)
+  order           Int      // sequence within round
+  createdAt       DateTime @default(now())
+
+  session CouncilSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([sessionId, round])
+}
+
+// NEXUS-P6-001: Build and Review Models
+model BuildRun {
+  id              String   @id @default(cuid())
+  projectId       String
+  status          String   @default("RUNNING") // RUNNING, APPROVED, NEEDS_HUMAN, STOPPED, FAILED
+  workspacePath   String   // isolated workspace for this build
+  rounds          Int      @default(0)
+  totalCost       Float    @default(0)
+  startedAt       DateTime @default(now())
+  finishedAt      DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  buildRounds BuildRound[]
+  commandLogs CommandLog[]
+  deployment Deployment?
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model BuildRound {
+  id              String   @id @default(cuid())
+  buildRunId      String
+  roundNumber     Int
+  builderOutput   String?  // the code/changes the builder generated
+  auditVerdict    String?  // APPROVE, REQUEST_CHANGES, REJECT
+  auditIssues     String?  // JSON array of issues
+  runsCorrectly   Boolean  @default(false)
+  cost            Float    @default(0)
+  createdAt       DateTime @default(now())
+
+  buildRun BuildRun @relation(fields: [buildRunId], references: [id], onDelete: Cascade)
+
+  @@index([buildRunId])
+  @@unique([buildRunId, roundNumber])
+}
+
+model CommandLog {
+  id              String   @id @default(cuid())
+  buildRunId      String
+  command         String   // the command executed
+  exitCode        Int?     // exit code of the command
+  truncatedOutput String?  // stderr + stdout (truncated to 10KB)
+  createdAt       DateTime @default(now())
+
+  buildRun BuildRun @relation(fields: [buildRunId], references: [id], onDelete: Cascade)
+
+  @@index([buildRunId])
+}
+
+// NEXUS-P7-001: Deployment Model
+model Deployment {
+  id                String   @id @default(cuid())
+  projectId         String
+  buildRunId        String   @unique // one deployment per build run
+  status            String   @default("PENDING") // PENDING, CREATING_REPO, CREATING_RAILWAY, DEPLOYING, LIVE, FAILED
+  githubRepo        String?  // owner/repo format
+  githubRepoUrl     String?  // full GitHub URL
+  railwayProjectId  String?  // Railway project ID
+  railwayServiceId  String?  // Railway service ID (after service creation)
+  deploymentId      String?  // Railway deployment ID (after deploy trigger)
+  liveUrl           String?  // https://<service>.up.railway.app
+  errorLog          String?  // JSON array of error objects {timestamp, stage, message}
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  buildRun BuildRun @relation(fields: [buildRunId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
 }

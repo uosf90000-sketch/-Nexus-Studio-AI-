@@ -9,6 +9,14 @@ interface Config {
     apiKey: string
     model: string
   }
+  openai: {
+    apiKey?: string
+    model: string
+  }
+  google: {
+    apiKey?: string
+    model: string
+  }
   database: {
     url: string
   }
@@ -20,16 +28,19 @@ interface Config {
     nodeEnv: 'development' | 'production'
     accessCode?: string
   }
+  railway?: {
+    apiToken?: string
+  }
 }
 
 function validateEnv(): Config {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY
+  if (!anthropicKey) {
     throw new Error('ANTHROPIC_API_KEY env var is required')
   }
 
-  const model = process.env.ANTHROPIC_MODEL
-  if (!model) {
+  const anthropicModel = process.env.ANTHROPIC_MODEL
+  if (!anthropicModel) {
     throw new Error('ANTHROPIC_MODEL env var is required')
   }
 
@@ -40,8 +51,16 @@ function validateEnv(): Config {
 
   return {
     anthropic: {
-      apiKey,
-      model,
+      apiKey: anthropicKey,
+      model: anthropicModel,
+    },
+    openai: {
+      apiKey: process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_MODEL || 'gpt-4o',
+    },
+    google: {
+      apiKey: process.env.GOOGLE_API_KEY,
+      model: process.env.GOOGLE_MODEL || 'gemini-2.0-flash',
     },
     database: {
       url: dbUrl,
@@ -53,6 +72,9 @@ function validateEnv(): Config {
     app: {
       nodeEnv: (process.env.NODE_ENV as 'development' | 'production') || 'development',
       accessCode: process.env.APP_ACCESS_CODE,
+    },
+    railway: {
+      apiToken: process.env.RAILWAY_API_TOKEN,
     },
   }
 }
