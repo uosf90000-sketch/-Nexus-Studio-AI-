@@ -6,7 +6,7 @@ builder = "nixpacks"
 
 [deploy]
 # Start command (Next.js production server)
-startCommand = "npx prisma migrate deploy && npm run start"
+startCommand = "npm run start:prod"
 
 # Health check endpoint (optional)
 # healthcheckUrl = "/api/health"
