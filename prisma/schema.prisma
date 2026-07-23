@@ -24,6 +24,7 @@ model Project {
   logs ExecutionLog[]
   councilSessions CouncilSession[]
   buildRuns BuildRun[]
+  deployments Deployment[]
 }
 
 model ProjectDocument {
@@ -244,6 +245,7 @@ model BuildRun {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   buildRounds BuildRound[]
   commandLogs CommandLog[]
+  deployment Deployment?
 
   @@index([projectId])
   @@index([status])
@@ -277,4 +279,27 @@ model CommandLog {
   buildRun BuildRun @relation(fields: [buildRunId], references: [id], onDelete: Cascade)
 
   @@index([buildRunId])
+}
+
+// NEXUS-P7-001: Deployment Model
+model Deployment {
+  id                String   @id @default(cuid())
+  projectId         String
+  buildRunId        String   @unique // one deployment per build run
+  status            String   @default("PENDING") // PENDING, CREATING_REPO, CREATING_RAILWAY, DEPLOYING, LIVE, FAILED
+  githubRepo        String?  // owner/repo format
+  githubRepoUrl     String?  // full GitHub URL
+  railwayProjectId  String?  // Railway project ID
+  railwayServiceId  String?  // Railway service ID (after service creation)
+  deploymentId      String?  // Railway deployment ID (after deploy trigger)
+  liveUrl           String?  // https://<service>.up.railway.app
+  errorLog          String?  // JSON array of error objects {timestamp, stage, message}
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  buildRun BuildRun @relation(fields: [buildRunId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
 }

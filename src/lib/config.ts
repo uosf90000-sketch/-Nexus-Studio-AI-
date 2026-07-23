@@ -28,6 +28,9 @@ interface Config {
     nodeEnv: 'development' | 'production'
     accessCode?: string
   }
+  railway?: {
+    apiToken?: string
+  }
 }
 
 function validateEnv(): Config {
@@ -69,6 +72,9 @@ function validateEnv(): Config {
     app: {
       nodeEnv: (process.env.NODE_ENV as 'development' | 'production') || 'development',
       accessCode: process.env.APP_ACCESS_CODE,
+    },
+    railway: {
+      apiToken: process.env.RAILWAY_API_TOKEN,
     },
   }
 }
