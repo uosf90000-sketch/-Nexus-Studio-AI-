@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "start:prod": "npx prisma migrate deploy --skip-generate 2>/dev/null || true; npm run start",
+    "start:prod": "npx prisma db push --skip-generate 2>/dev/null || true; npm run start",
     "lint": "next lint",
     "test": "vitest",
     "prisma:generate": "prisma generate",
