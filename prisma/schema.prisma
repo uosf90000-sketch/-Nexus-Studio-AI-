@@ -92,6 +92,7 @@ model TaskRun {
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   review Review?
   writtenFiles WrittenFile[]
+  gitPush GitPush?
 
   @@index([taskId])
 }
@@ -147,6 +148,20 @@ model WrittenFile {
 
   @@index([taskRunId])
   @@index([reviewId])
+}
+
+model GitPush {
+  id        String   @id @default(cuid())
+  taskRunId String
+  repo      String   // output repository (e.g., "user/project-repo")
+  branch    String   // branch name (e.g., "nexus/<taskRunId>")
+  commitSha String   // commit SHA hash
+  createdAt DateTime @default(now())
+
+  taskRun TaskRun @relation(fields: [taskRunId], references: [id], onDelete: Cascade)
+
+  @@index([taskRunId])
+  @@unique([taskRunId]) // one push per TaskRun (for now)
 }
 
 model AppSetting {
