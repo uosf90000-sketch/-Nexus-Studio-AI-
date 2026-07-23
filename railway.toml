@@ -1,0 +1,15 @@
+# Railway deployment configuration for Nexus Studio AI
+
+[build]
+# Use Node.js default build (detects Next.js automatically)
+builder = "nixpacks"
+
+[deploy]
+# Start command (Next.js production server)
+startCommand = "npm run start"
+
+# Health check endpoint (optional)
+# healthcheckUrl = "/api/health"
+
+# Port configuration
+port = 3000
