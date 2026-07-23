@@ -1,5 +1,8 @@
 'use client'
 
+// NEXUS-P3-001: Founder View Home Page
+// Arabic-first, RTL, mobile-first interface
+
 import { FormEvent, useEffect, useState } from 'react'
 import Link from 'next/link'
 
@@ -22,7 +25,6 @@ export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoadingProjects, setIsLoadingProjects] = useState(true)
 
-  // Load projects on mount
   useEffect(() => {
     loadProjects()
   }, [])
@@ -31,12 +33,12 @@ export default function HomePage() {
     try {
       setIsLoadingProjects(true)
       const res = await fetch('/api/projects')
-      if (!res.ok) throw new Error('Failed to load projects')
+      if (!res.ok) throw new Error('فشل تحميل المشاريع')
       const data = await res.json()
       setProjects(data.projects || [])
     } catch (err) {
       console.error('Error loading projects:', err)
-      setError('Failed to load projects')
+      setError('فشل تحميل المشاريع')
     } finally {
       setIsLoadingProjects(false)
     }
@@ -45,7 +47,7 @@ export default function HomePage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!title.trim() || !idea.trim()) {
-      setError('Please fill in both title and idea')
+      setError('يرجى ملء اسم المشروع والفكرة')
       return
     }
 
@@ -61,62 +63,60 @@ export default function HomePage() {
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to create project')
+        throw new Error(data.error || 'فشل إنشاء المشروع')
       }
 
-      const data = await res.json()
-
-      // Reset form
       setTitle('')
       setIdea('')
-
-      // Reload projects
       await loadProjects()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      setError(err instanceof Error ? err.message : 'حدث خطأ')
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="text-4xl font-bold">Nexus Studio AI</h1>
-        <p className="text-muted-foreground mt-2">Personal Prototype - Transform ideas into summaries and plans</p>
+    <div className="space-y-6 sm:space-y-8">
+      {/* Header */}
+      <header className="space-y-2 sm:space-y-3">
+        <h1 className="text-3xl sm:text-4xl font-bold text-right">ستوديو نيكساس AI</h1>
+        <p className="text-sm sm:text-base text-muted-foreground text-right">من فكرتك إلى منتج موثّق مُراجَع وجاهز للتسليم</p>
       </header>
 
-      {/* Input form */}
-      <div className="bg-card rounded-lg border border-border p-6">
-        <h2 className="text-2xl font-semibold mb-4">Start with an Idea</h2>
+      {/* New Project Form */}
+      <div className="bg-card rounded-lg border border-border p-4 sm:p-6">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-right">ابدأ بفكرتك</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Project Title</label>
+            <label className="block text-sm font-medium mb-2 text-right">اسم المشروع</label>
             <input
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="e.g., Mobile Shopping App"
-              className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="مثلاً: تطبيق التسوق الجوال"
+              className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring text-right"
               disabled={isLoading}
+              dir="rtl"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Describe Your Idea</label>
+            <label className="block text-sm font-medium mb-2 text-right">وصف الفكرة</label>
             <textarea
               value={idea}
               onChange={e => setIdea(e.target.value)}
-              placeholder="Describe what you want to build..."
-              rows={5}
-              className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="وضّح ما تريد بناءه والمشكلة التي تحل..."
+              rows={4}
+              className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring text-right resize-none"
               disabled={isLoading}
+              dir="rtl"
             />
           </div>
 
           {error && (
-            <div className="bg-destructive/10 text-destructive px-4 py-2 rounded-md text-sm">
+            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm text-right">
               {error}
             </div>
           )}
@@ -124,21 +124,21 @@ export default function HomePage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-primary text-primary-foreground px-4 py-3 rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition text-right"
           >
-            {isLoading ? 'Processing...' : 'Generate Summary & PRD'}
+            {isLoading ? 'جارٍ المعالجة...' : 'ولّد الملخص والـ PRD'}
           </button>
         </form>
       </div>
 
-      {/* Projects list */}
-      <div className="bg-card rounded-lg border border-border p-6">
-        <h2 className="text-2xl font-semibold mb-4">Recent Projects</h2>
+      {/* Projects List */}
+      <div className="bg-card rounded-lg border border-border p-4 sm:p-6">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-right">مشاريعك</h2>
 
         {isLoadingProjects ? (
-          <p className="text-muted-foreground">Loading projects...</p>
+          <p className="text-muted-foreground text-right text-sm">جاري التحميل...</p>
         ) : projects.length === 0 ? (
-          <p className="text-muted-foreground">No projects yet. Create one above!</p>
+          <p className="text-muted-foreground text-right text-sm">لا توجد مشاريع بعد. ابدأ بإنشاء مشروع أعلاه!</p>
         ) : (
           <div className="space-y-3">
             {projects.map(project => (
@@ -147,10 +147,10 @@ export default function HomePage() {
                 href={`/projects/${project.id}`}
                 className="block p-4 border border-border rounded-lg hover:bg-muted/50 transition"
               >
-                <h3 className="font-semibold">{project.title}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{project.idea.substring(0, 100)}...</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {new Date(project.createdAt).toLocaleDateString()}
+                <h3 className="font-semibold text-right">{project.title}</h3>
+                <p className="text-sm text-muted-foreground mt-2 text-right line-clamp-2">{project.idea.substring(0, 100)}...</p>
+                <p className="text-xs text-muted-foreground mt-2 text-right">
+                  {new Date(project.createdAt).toLocaleDateString('ar-SA')}
                 </p>
               </Link>
             ))}

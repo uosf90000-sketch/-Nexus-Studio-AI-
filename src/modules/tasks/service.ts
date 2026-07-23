@@ -112,7 +112,7 @@ export class TasksService {
 
         // Insert new tasks with server-assigned sequential order
         const insertedTasks = await Promise.all(
-          generatorOutput.tasks.map((task, index) =>
+          generatorOutput.tasks.map((task: { title: string; description: string }, index: number) =>
             tx.task.create({
               data: {
                 projectId,

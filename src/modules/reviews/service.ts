@@ -109,7 +109,7 @@ export class ReviewsService {
     logSafe(`ReviewsService: created Review ${review.id}`)
 
     // Generate review with retry logic (max 2 attempts)
-    let reviewerOutput: ReturnType<InstanceType<typeof Reviewer>['reviewCode']> | null = null
+    let reviewerOutput: Awaited<ReturnType<InstanceType<typeof Reviewer>['reviewCode']>> | null = null
     let lastError: Error | null = null
 
     for (let attempt = 1; attempt <= 2; attempt++) {

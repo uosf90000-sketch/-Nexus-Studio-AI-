@@ -2,7 +2,7 @@
 // Defines how agents (Planner, Builder, Reviewer) interact with different providers.
 // Each provider gets its own adapter implementation.
 
-export type AgentRole = 'planner'
+export type AgentRole = 'planner' | 'builder' | 'reviewer'
 
 export interface AgentInput {
   role: AgentRole
