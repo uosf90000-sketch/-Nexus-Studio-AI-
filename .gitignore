@@ -24,6 +24,10 @@ node_modules/
 *.db-shm
 *.db-wal
 
+# Prisma
+prisma/migrations/
+migration_lock.toml
+
 # Misc
 .DS_Store
 *.pem
