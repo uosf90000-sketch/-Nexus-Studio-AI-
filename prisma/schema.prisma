@@ -93,6 +93,7 @@ model TaskRun {
   review Review?
   writtenFiles WrittenFile[]
   gitPush GitPush?
+  pullRequest PullRequest?
 
   @@index([taskId])
 }
@@ -132,6 +133,7 @@ model Review {
 
   taskRun TaskRun @relation(fields: [taskRunId], references: [id], onDelete: Cascade)
   writtenFiles WrittenFile[]
+  pullRequests PullRequest[]
 
   @@index([taskRunId])
 }
@@ -159,9 +161,27 @@ model GitPush {
   createdAt DateTime @default(now())
 
   taskRun TaskRun @relation(fields: [taskRunId], references: [id], onDelete: Cascade)
+  pullRequest PullRequest?
 
   @@index([taskRunId])
   @@unique([taskRunId]) // one push per TaskRun (for now)
+}
+
+model PullRequest {
+  id        String   @id @default(cuid())
+  taskRunId String   @unique // one PR per TaskRun
+  reviewId  String
+  gitPushId String   @unique // one PR per GitPush
+  repo      String   // output repository (e.g., "user/project-repo")
+  number    Int      // PR number on GitHub
+  url       String   // full GitHub PR URL
+  createdAt DateTime @default(now())
+
+  taskRun TaskRun @relation(fields: [taskRunId], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  gitPush GitPush @relation(fields: [gitPushId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
 }
 
 model AppSetting {

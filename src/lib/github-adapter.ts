@@ -26,6 +26,20 @@ export interface GitHubAdapterResponse {
   error?: string
 }
 
+export interface CreatePullRequestRequest {
+  head: string // branch name (e.g., "nexus/<taskRunId>")
+  base: string // target branch (e.g., "main")
+  title: string
+  body: string
+}
+
+export interface CreatePullRequestResponse {
+  success: boolean
+  number?: number // PR number
+  url?: string // PR URL
+  error?: string
+}
+
 export class GitHubAdapter {
   private token?: string
   private repoOwner: string
@@ -133,6 +147,55 @@ export class GitHubAdapter {
       return {
         success: false,
         error: `Commit creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  }
+
+  async createPullRequest(req: CreatePullRequestRequest): Promise<CreatePullRequestResponse> {
+    if (!this.token) {
+      return {
+        success: false,
+        error: 'GitHub token is missing.',
+      }
+    }
+
+    try {
+      const response = await fetch(
+        `https://api.github.com/repos/${this.repoOwner}/${this.repoName}/pulls`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `token ${this.token}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/vnd.github.v3+json',
+          },
+          body: JSON.stringify({
+            title: req.title,
+            body: req.body,
+            head: req.head,
+            base: req.base,
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        return {
+          success: false,
+          error: `Failed to create PR: ${errorData.message || response.statusText}`,
+        }
+      }
+
+      const data = await response.json()
+      return {
+        success: true,
+        number: data.number,
+        url: data.html_url,
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: `PR creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   }
